@@ -1,7 +1,9 @@
+#include "klee/Protocols/coap/coap_messages.h"
+#include "klee/Protocols/coap/coap_monitors.h"
 #include "klee/Protocols/dtls/dtls_monitors.h"
 #include "klee/Protocols/dtls/dtls_records.h"
-#include "klee/Protocols/quic/quic_packets.h"
 #include "klee/Protocols/quic/quic_monitors.h"
+#include "klee/Protocols/quic/quic_packets.h"
 #include "klee/Protocols/quic/quic_states.h"
 
 // records that are exchanged between client and server
@@ -171,5 +173,51 @@ int handle_quic_datagram(uint8_t *datagram, size_t datagram_size,
     packet_counter++;
   }
   out_datagram -= datagram_size;
+  return 0;
+}
+
+// messages that are exchanged between client and server
+static MESSAGE messages[60];
+static MESSAGE shadow_messages[60];
+// number of messages that are exchanged so far
+static size_t message_counter = 0;
+int8_t coap_server_current_state = INIT;
+int8_t coap_client_current_state = INIT;
+int8_t coap_accumulative_state = INIT;
+static bool is_coap_monitor_enabled = false;
+int handle_CoAP_datagram(uint8_t *datagram, size_t datagram_size,
+                         uint8_t *out_datagram, bool is_client_originated,
+                         coap_monitor_handle monitor_handle,
+                         int state_to_check) {
+
+  parse_message(datagram, &messages[message_counter], datagram_size,
+                is_client_originated);
+
+  parse_message(datagram, &shadow_messages[message_counter], datagram_size,
+                is_client_originated);
+
+  if (is_client_originated) {
+    CoAP_server_state_machine(messages, shadow_messages, message_counter,
+                              &coap_server_current_state);
+    coap_accumulative_state = coap_server_current_state;
+  } else {
+    CoAP_client_state_machine(messages, shadow_messages, message_counter,
+                              &coap_client_current_state);
+    coap_accumulative_state = coap_client_current_state;
+  }
+
+  if (coap_accumulative_state >= state_to_check) {
+    is_coap_monitor_enabled = true;
+  }
+  if (is_coap_monitor_enabled) {
+    if (monitor_handle != NULL) {
+      MESSAGE *message = messages + message_counter;
+      monitor_handle(message, is_client_originated);
+    }
+  }
+
+  serialize_message(&out_datagram, &messages[message_counter], datagram_size,
+                    &shadow_messages[message_counter]);
+  message_counter++;
   return 0;
 }
