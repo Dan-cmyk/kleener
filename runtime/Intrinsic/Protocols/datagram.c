@@ -177,10 +177,10 @@ int handle_quic_datagram(uint8_t *datagram, size_t datagram_size,
 }
 
 // messages that are exchanged between client and server
-static MESSAGE messages[60];
-static MESSAGE shadow_messages[60];
+static CoapMessage coap_messages[60];
+static CoapMessage coap_shadow_messages[60];
 // number of messages that are exchanged so far
-static size_t message_counter = 0;
+static size_t coap_message_counter = 0;
 int8_t coap_server_current_state = INIT;
 int8_t coap_client_current_state = INIT;
 int8_t coap_accumulative_state = INIT;
@@ -190,19 +190,19 @@ int handle_CoAP_datagram(uint8_t *datagram, size_t datagram_size,
                          coap_monitor_handle monitor_handle,
                          int state_to_check) {
 
-  parse_message(datagram, &messages[message_counter], datagram_size,
-                is_client_originated);
+  parse_coap_message(datagram, datagram_size,
+                     &coap_messages[coap_message_counter]);
 
-  parse_message(datagram, &shadow_messages[message_counter], datagram_size,
-                is_client_originated);
+  parse_coap_message(datagram, datagram_size,
+                     &coap_shadow_messages[coap_message_counter]);
 
   if (is_client_originated) {
-    CoAP_server_state_machine(messages, shadow_messages, message_counter,
-                              &coap_server_current_state);
+    CoAP_server_state_machine(coap_messages, coap_shadow_messages,
+                              coap_message_counter, &coap_server_current_state);
     coap_accumulative_state = coap_server_current_state;
   } else {
-    CoAP_client_state_machine(messages, shadow_messages, message_counter,
-                              &coap_client_current_state);
+    CoAP_client_state_machine(coap_messages, coap_shadow_messages,
+                              coap_message_counter, &coap_client_current_state);
     coap_accumulative_state = coap_client_current_state;
   }
 
@@ -211,13 +211,14 @@ int handle_CoAP_datagram(uint8_t *datagram, size_t datagram_size,
   }
   if (is_coap_monitor_enabled) {
     if (monitor_handle != NULL) {
-      MESSAGE *message = messages + message_counter;
+      MESSAGE *message = coap_messages + coap_message_counter;
       monitor_handle(message, is_client_originated);
     }
   }
 
-  serialize_message(&out_datagram, &messages[message_counter], datagram_size,
-                    &shadow_messages[message_counter]);
-  message_counter++;
+  serialize_coap_message(&coap_messages[coap_message_counter],
+                         &coap_shadow_messages[coap_message_counter],
+                         &out_datagram, datagram_size);
+  coap_message_counter++;
   return 0;
 }

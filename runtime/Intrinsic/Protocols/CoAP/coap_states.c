@@ -19,7 +19,7 @@ void CoAP_server_state_machine(MESSAGE *message, MESSAGE *shadow_message,
     *server_current_state = NON_CONF_RCVD;
     printf("\n[Server-model-log] Non-Confirmable message has been parsed\n");
 
-  } else if (shadow_msg->type == ACKNOWLEDGEMENT_MSG) {
+  } else if (shadow_msg->type == ACK_MSG) {
     printf("\n[Server-model-log] Acknowledgement has been parsed\n");
 
   } else if (shadow_msg->type == RESET_MSG) {
@@ -40,7 +40,7 @@ void CoAP_client_state_machine(MESSAGE *message, MESSAGE *shadow_message,
     *client_current_state = NON_CONF_RCVD;
     printf("\n[Client-model-log] Non-Confirmable message has been parsed\n");
 
-  } else if (shadow_msg->type == ACKNOWLEDGEMENT_MSG) {
+  } else if (shadow_msg->type == ACK_MSG) {
     printf("\n[Client-model-log] Acknowledgement has been parsed\n");
 
   } else if (shadow_msg->type == RESET_MSG) {
